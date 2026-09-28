@@ -121,9 +121,9 @@ func main() {
 	}
 
 	switch args[0] {
-	case "ingress":
+	case "ingress", "ing":
 		runIngress(args[1:], rootOpts)
-	case "service":
+	case "service", "svc":
 		runService(args[1:], rootOpts)
 	case "deployment", "deploy":
 		runDeployment(args[1:], rootOpts)
@@ -131,9 +131,9 @@ func main() {
 		runStatefulSet(args[1:], rootOpts)
 	case "job":
 		runJob(args[1:], rootOpts)
-	case "cronjob", "cron":
+	case "cronjob", "cron", "cj":
 		runCronJob(args[1:], rootOpts)
-	case "gateway":
+	case "gateway", "gtw":
 		runGateway(args[1:], rootOpts)
 	case "httproute":
 		runHTTPRoute(args[1:], rootOpts)
@@ -145,17 +145,17 @@ func main() {
 		runTLSRoute(args[1:], rootOpts)
 	case "grpcroute":
 		runGRPCRoute(args[1:], rootOpts)
-	case "pod", "pods":
+	case "pod", "pods", "po":
 		runPod(args[1:], rootOpts)
 	case "pvc":
 		runPVC(args[1:], rootOpts)
 	case "role":
 		runRole(args[1:], rootOpts)
-	case "rolebinding":
+	case "rolebinding", "rb":
 		runRoleBinding(args[1:], rootOpts)
-	case "clusterrole":
+	case "clusterrole", "cr":
 		runClusterRole(args[1:], rootOpts)
-	case "clusterrolebinding":
+	case "clusterrolebinding", "crb":
 		runClusterRoleBinding(args[1:], rootOpts)
 	case "completion":
 		runCompletion(args[1:])
@@ -927,31 +927,33 @@ func printUsage() {
 
 Usage:
 	kubectl-graph [-n namespace] [--output ascii|mermaid|tree|json] <command>
-  kubectl-graph ingress <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph service <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph ingress|ing <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph service|svc <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph deployment <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph deploy <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph statefulset <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph sts <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph job <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph cronjob <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph cronjob|cj <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph cron <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph gateway <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph gateway|gtw <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph httproute <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph tcproute <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph udproute <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph tlsroute <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph grpcroute <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph pod <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph pod|po <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph pvc <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph role <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph rolebinding <name> [-n namespace] [--output ascii|mermaid|tree|json]
-	kubectl-graph clusterrole <name> [--output ascii|mermaid|tree|json]
-	kubectl-graph clusterrolebinding <name> [--output ascii|mermaid|tree|json]
+	kubectl-graph rolebinding|rb <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph clusterrole|cr <name> [--output ascii|mermaid|tree|json]
+	kubectl-graph clusterrolebinding|crb <name> [--output ascii|mermaid|tree|json]
 	kubectl-graph completion <zsh|bash>
 
 Examples:
   kubectl graph ingress web -n prod
+	kubectl graph ing web -n prod
+	kubectl graph svc web-svc -n prod
 	kubectl graph service web-svc -n prod
 	kubectl graph deployment web -n prod
 	kubectl graph statefulset db -n prod
@@ -2098,15 +2100,19 @@ _kubectl_graph() {
 	if [[ -z "${_subcmd}" ]] || (( CURRENT == _subcmd_pos )); then
 		_values 'command' \
 			'ingress[Graph dependencies from an ingress]' \
+			'ing[Alias for ingress]' \
 			'service[Graph dependencies from a service]' \
+			'svc[Alias for service]' \
 			'deploy[Alias for deployment]' \
 			'deployment[Graph dependencies from a deployment]' \
 			'sts[Alias for statefulset]' \
 			'statefulset[Graph dependencies from a StatefulSet]' \
 			'job[Graph dependencies from a job]' \
 			'cron[Alias for cronjob]' \
+			'cj[Alias for cronjob]' \
 			'cronjob[Graph dependencies from a cronjob]' \
 			'gateway[Graph dependencies from a gateway]' \
+			'gtw[Alias for gateway]' \
 			'httproute[Graph dependencies from an HTTPRoute]' \
 			'tcproute[Graph dependencies from a TCPRoute]' \
 			'udproute[Graph dependencies from a UDPRoute]' \
@@ -2114,11 +2120,15 @@ _kubectl_graph() {
 			'grpcroute[Graph dependencies from a GRPCRoute]' \
 			'pod[Graph dependencies from a pod]' \
 			'pods[Alias for pod]' \
+			'po[Alias for pod]' \
 			'pvc[Graph storage dependencies from a PVC]' \
 			'role[Graph RBAC dependencies from a Role]' \
 			'rolebinding[Graph RBAC dependencies from a RoleBinding]' \
+			'rb[Alias for rolebinding]' \
 			'clusterrole[Graph RBAC dependencies from a ClusterRole]' \
+			'cr[Alias for clusterrole]' \
 			'clusterrolebinding[Graph RBAC dependencies from a ClusterRoleBinding]' \
+			'crb[Alias for clusterrolebinding]' \
 			'completion[Generate completion script]'
 		return
 	fi
@@ -2163,17 +2173,18 @@ _kubectl_graph() {
 	}
 
 	case "${_subcmd}" in
-		ingress)                      _kg_zsh_complete_namespaced ingress ;;
-		service)                      _kg_zsh_complete_namespaced svc ;;
+		ingress|ing)                  _kg_zsh_complete_namespaced ingress ;;
+		service|svc)                  _kg_zsh_complete_namespaced svc ;;
 		deployment|deploy)            _kg_zsh_complete_namespaced deploy ;;
 		statefulset|sts)              _kg_zsh_complete_namespaced statefulset ;;
 		job)                          _kg_zsh_complete_namespaced job ;;
-		cronjob|cron)                 _kg_zsh_complete_namespaced cronjob ;;
-		pod|pods)                     _kg_zsh_complete_namespaced pod ;;
+		cronjob|cron|cj)              _kg_zsh_complete_namespaced cronjob ;;
+		gateway|gtw)                  _kg_zsh_complete_namespaced gateway ;;
+		pod|pods|po)                  _kg_zsh_complete_namespaced pod ;;
 		pvc)                          _kg_zsh_complete_namespaced pvc ;;
 		role)                         _kg_zsh_complete_namespaced role ;;
-		rolebinding)                  _kg_zsh_complete_namespaced rolebinding ;;
-		clusterrole)
+		rolebinding|rb)               _kg_zsh_complete_namespaced rolebinding ;;
+		clusterrole|cr)
 			local has_name=0 ci
 			for (( ci = _scan_start; ci < CURRENT; ci++ )); do
 				case "${words[$ci]}" in --output) (( ci++ )) ;; -*) ;; *) has_name=1 ;; esac
@@ -2186,7 +2197,7 @@ _kubectl_graph() {
 				_arguments '--output=[Output format]:format:(ascii mermaid tree json)'
 			fi
 			;;
-		clusterrolebinding)
+		clusterrolebinding|crb)
 			local has_name=0 ci
 			for (( ci = _scan_start; ci < CURRENT; ci++ )); do
 				case "${words[$ci]}" in --output) (( ci++ )) ;; -*) ;; *) has_name=1 ;; esac
@@ -2199,7 +2210,7 @@ _kubectl_graph() {
 				_arguments '--output=[Output format]:format:(ascii mermaid tree json)'
 			fi
 			;;
-		gateway|httproute|tcproute|udproute|tlsroute|grpcroute)
+		httproute|tcproute|udproute|tlsroute|grpcroute)
 			namespaces=(${(f)"$(kubectl get ns -o custom-columns=':metadata.name' --no-headers 2>/dev/null)"})
 			local state
 			_arguments -s -C \
@@ -2257,7 +2268,7 @@ _kubectl_graph() {
 
 	# No subcommand yet, or cursor is at the subcommand position → suggest subcommands
 	if [[ -z "${cmd}" || ${COMP_CWORD} -eq ${cmd_idx} ]]; then
-		COMPREPLY=( $(compgen -W "ingress service deployment deploy statefulset sts job cronjob cron pod pods pvc role rolebinding clusterrole clusterrolebinding gateway httproute tcproute udproute tlsroute grpcroute completion" -- "${cur}") )
+		COMPREPLY=( $(compgen -W "ingress ing service svc deployment deploy statefulset sts job cronjob cron cj pod pods po pvc role rolebinding rb clusterrole cr clusterrolebinding crb gateway gtw httproute tcproute udproute tlsroute grpcroute completion" -- "${cur}") )
 		return 0
 	fi
 
@@ -2298,20 +2309,21 @@ _kubectl_graph() {
 	}
 
 	case "${cmd}" in
-		ingress)                                              _kg_complete_namespaced ingress; return $? ;;
-		service)                                              _kg_complete_namespaced svc; return $? ;;
+		ingress|ing)                                          _kg_complete_namespaced ingress; return $? ;;
+		service|svc)                                          _kg_complete_namespaced svc; return $? ;;
 		deployment|deploy)                                    _kg_complete_namespaced deploy; return $? ;;
 		statefulset|sts)                                      _kg_complete_namespaced statefulset; return $? ;;
 		job)                                                  _kg_complete_namespaced job; return $? ;;
-		cronjob|cron)                                         _kg_complete_namespaced cronjob; return $? ;;
-		pod|pods)                                             _kg_complete_namespaced pod; return $? ;;
+		cronjob|cron|cj)                                      _kg_complete_namespaced cronjob; return $? ;;
+		gateway|gtw)                                          COMPREPLY=( $(compgen -W "-n --namespace --output" -- "${cur}") ); return 0 ;;
+		pod|pods|po)                                          _kg_complete_namespaced pod; return $? ;;
 		pvc)                                                  _kg_complete_namespaced pvc; return $? ;;
 		role)                                                 _kg_complete_namespaced role; return $? ;;
-		rolebinding)                                          _kg_complete_namespaced rolebinding; return $? ;;
-		gateway|httproute|tcproute|udproute|tlsroute|grpcroute)
+		rolebinding|rb)                                       _kg_complete_namespaced rolebinding; return $? ;;
+		httproute|tcproute|udproute|tlsroute|grpcroute)
 			COMPREPLY=( $(compgen -W "-n --namespace --output" -- "${cur}") )
 			return 0 ;;
-		clusterrole)
+		clusterrole|cr)
 			local has_name=0 bi
 			for (( bi = _scan_start; bi < COMP_CWORD; bi++ )); do
 				case "${COMP_WORDS[$bi]}" in --output) (( bi++ )) ;; -*) ;; *) has_name=1 ;; esac
@@ -2321,7 +2333,7 @@ _kubectl_graph() {
 				return 0
 			fi
 			COMPREPLY=( $(compgen -W "--output" -- "${cur}") ); return 0 ;;
-		clusterrolebinding)
+		clusterrolebinding|crb)
 			local has_name=0 bi
 			for (( bi = _scan_start; bi < COMP_CWORD; bi++ )); do
 				case "${COMP_WORDS[$bi]}" in --output) (( bi++ )) ;; -*) ;; *) has_name=1 ;; esac

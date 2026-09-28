@@ -114,19 +114,11 @@ export PATH="$HOME/.local/bin:$PATH"
 ## Usage
 
 ```bash
-kubectl graph ingress <name> -n <namespace>
-kubectl graph service <name> -n <namespace>
-kubectl graph deployment <name> -n <namespace>
-kubectl graph deploy <name> -n <namespace>
-kubectl graph job <name> -n <namespace>
-kubectl graph cronjob <name> -n <namespace>
-kubectl graph cron <name> -n <namespace>
-kubectl graph pvc <name> -n <namespace>
-
-kubectl graph ingress <name> -n <namespace> --output ascii
-kubectl graph ingress <name> -n <namespace> --output tree
-kubectl graph ingress <name> -n <namespace> --output mermaid
-kubectl graph ingress <name> -n <namespace> --output json
+kubectl graph <resource> <name> -n <namespace>
+kubectl graph ingress web -n prod
+kubectl graph service web-svc -n prod
+kubectl graph deployment web -n prod
+kubectl graph ingress web -n prod --output tree
 ```
 
 `-n/--namespace` can be placed before or after the resource name.
