@@ -31,12 +31,18 @@ Supported output modes:
 
 ## Install a Prebuilt Release
 
-Download the `v0.1.0` archive matching your operating system and architecture from [GitHub Releases](https://github.com/chayte/kgraph/releases/latest). Choose `darwin` for macOS, `linux` for Linux, or `windows` for Windows; choose `arm64` for Apple Silicon or ARM machines, and `amd64` for Intel/AMD machines. Windows archives use `.zip`; macOS and Linux archives use `.tar.gz`.
+Download the latest archive matching your operating system and architecture from [GitHub Releases](https://github.com/chayte/kgraph/releases/latest). Choose `darwin` for macOS, `linux` for Linux, or `windows` for Windows; choose `arm64` for Apple Silicon or ARM machines, and `amd64` for Intel/AMD machines. Windows archives use `.zip`; macOS and Linux archives use `.tar.gz`.
 
-On macOS or Linux, run this to detect your OS and CPU architecture, download the matching archive, and install the plugin:
+On macOS or Linux, set the release version:
 
 ```bash
-VERSION=v0.1.0
+VERSION=v0.2.3
+```
+
+Then run this block to detect your OS and CPU architecture, download the matching archive, and install the plugin. It defaults to `v0.2.3` if the version variable was not set in the current shell:
+
+```bash
+VERSION="${VERSION:-v0.2.3}"
 case "$(uname -s)" in
   Darwin) OS=darwin ;;
   Linux) OS=linux ;;
@@ -53,8 +59,6 @@ tar -xzf "$ARCHIVE"
 mkdir -p ~/.local/bin
 install -m 0755 "kubectl-graph_${VERSION}_${OS}_${ARCH}/kubectl-graph" ~/.local/bin/kubectl-graph
 export PATH="$HOME/.local/bin:$PATH"
-kubectl plugin list
-kubectl graph service my-service -n default
 ```
 
 If `~/.local/bin` is not already in your `PATH`, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` (zsh) or `~/.bashrc` (bash), then open a new terminal.
@@ -79,7 +83,7 @@ grep -qxF 'source "$HOME/.kubectl-graph-completion.bash"' ~/.bashrc || echo 'sou
 source ~/.bashrc
 ```
 
-On Windows, download and extract `kubectl-graph_v0.1.0_windows_amd64.zip` or `kubectl-graph_v0.1.0_windows_arm64.zip`, then add the extracted directory containing `kubectl-graph.exe` to your `PATH`. Open a new terminal and run `kubectl plugin list` to check that kubectl discovers it.
+On Windows, download and extract `kubectl-graph_v0.2.3_windows_amd64.zip` or `kubectl-graph_v0.2.3_windows_arm64.zip`, then add the extracted directory containing `kubectl-graph.exe` to your `PATH`.
 
 Each release archive includes this project's license, third-party license texts, and a CSV license report. `SHA256SUMS` is available on the release page to verify downloaded archives.
 
