@@ -1478,7 +1478,7 @@ func renderPodASCII(ctx context.Context, clientset *kubernetes.Clientset, namesp
 	fmt.Fprintf(&b, "|-- IP: %s\n", styleValue(valueOrNone(pod.Status.PodIP)))
 	fmt.Fprintf(&b, "|-- Phase: %s\n", stylePhase(pod.Status.Phase))
 	fmt.Fprintf(&b, "|-- Node: %s\n", styleValue(valueOrNone(pod.Spec.NodeName)))
-	
+
 	containers := pod.Spec.Containers
 	if len(containers) == 0 {
 		fmt.Fprintf(&b, "|-- Containers: none\n")
@@ -1500,7 +1500,7 @@ func renderPodASCII(ctx context.Context, clientset *kubernetes.Clientset, namesp
 			}
 		}
 	}
-	
+
 	services, _ := servicesMatchingSelector(ctx, clientset, namespace, pod.Labels)
 	fmt.Fprintf(&b, "`-- Services:\n")
 	if len(services) == 0 {
@@ -1541,7 +1541,7 @@ func buildPodGraph(ctx context.Context, clientset *kubernetes.Clientset, namespa
 		svcNode := g.addNodeWithDetails("Service", svc.Namespace, svc.Name, buildServiceDetails(ctx, clientset, &svc))
 		svcPortsLabel := buildServicePortsLabel(svc.Spec.Ports)
 		g.addEdgeWithLabel(svcNode, podNode, svcPortsLabel)
-		
+
 		ingresses, _ := ingressesForService(ctx, clientset, svc.Namespace, svc.Name)
 		for _, ingName := range ingresses {
 			ingNode := g.addNode("Ingress", svc.Namespace, ingName)

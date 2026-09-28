@@ -127,6 +127,10 @@ kubectl graph ingress web -n prod --output tree
 
 `-n/--namespace` can be placed before or after the resource name.
 
+## Example
+
+![Example output for a Kubernetes Service graph](docs/images/example1.png)
+
 ## ASCII View Notes
 
 The `ascii` mode is optimized for terminal readability and includes key metadata such as:
