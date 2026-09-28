@@ -31,7 +31,7 @@ Supported output modes:
 
 ## Install a Prebuilt Release
 
-Download the archive matching your operating system and architecture from [GitHub Releases](https://github.com/chayte/kubectl-graph/releases/latest). Archives are named `kubectl-graph_<version>_<os>_<architecture>`; Windows releases use `.zip`, and macOS and Linux releases use `.tar.gz`.
+Download the archive matching your operating system and architecture from [GitHub Releases](https://github.com/chayte/kgraph/releases/latest). Archives are named `kubectl-graph_<version>_<os>_<architecture>`; Windows releases use `.zip`, and macOS and Linux releases use `.tar.gz`.
 
 For macOS or Linux, extract the archive, install the executable in `~/.local/bin`, and make sure that directory is in your `PATH`. For example, with the Linux amd64 release `v0.1.0`:
 
