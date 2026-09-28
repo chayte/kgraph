@@ -59,6 +59,26 @@ kubectl graph service my-service -n default
 
 If `~/.local/bin` is not already in your `PATH`, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` (zsh) or `~/.bashrc` (bash), then open a new terminal.
 
+### Enable Shell Completion
+
+Run the commands for your shell to enable completion for both `kubectl-graph` and `kubectl graph`.
+
+#### zsh
+
+```bash
+kubectl-graph completion zsh > ~/.kubectl-graph-completion.zsh
+grep -qxF 'source "$HOME/.kubectl-graph-completion.zsh"' ~/.zshrc || echo 'source "$HOME/.kubectl-graph-completion.zsh"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### bash
+
+```bash
+kubectl-graph completion bash > ~/.kubectl-graph-completion.bash
+grep -qxF 'source "$HOME/.kubectl-graph-completion.bash"' ~/.bashrc || echo 'source "$HOME/.kubectl-graph-completion.bash"' >> ~/.bashrc
+source ~/.bashrc
+```
+
 On Windows, download and extract `kubectl-graph_v0.1.0_windows_amd64.zip` or `kubectl-graph_v0.1.0_windows_arm64.zip`, then add the extracted directory containing `kubectl-graph.exe` to your `PATH`. Open a new terminal and run `kubectl plugin list` to check that kubectl discovers it.
 
 Each release archive includes this project's license, third-party license texts, and a CSV license report. `SHA256SUMS` is available on the release page to verify downloaded archives.
@@ -126,29 +146,6 @@ To disable styling:
 ```bash
 NO_COLOR=1 kubectl graph ...
 ```
-
-## Shell Completion
-
-### zsh
-
-```bash
-kubectl-graph completion zsh > ~/.kubectl-graph-completion.zsh
-echo 'source "$HOME/.kubectl-graph-completion.zsh"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-### bash
-
-```bash
-kubectl-graph completion bash > ~/.kubectl-graph-completion.bash
-echo 'source "$HOME/.kubectl-graph-completion.bash"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-Completion supports both forms:
-
-- `kubectl-graph ...`
-- `kubectl graph ...`
 
 ## Mermaid Example
 
