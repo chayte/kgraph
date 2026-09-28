@@ -151,14 +151,14 @@ NO_COLOR=1 kubectl graph ...
 
 ```mermaid
 graph LR
-  ingress_default_web(["Ingress\nweb"])
-  service_default_web_svc(["Service\nweb-svc"])
-  deployment_default_web["Deployment\nweb"]
-  pod_default_web_abc["Pod\nweb-abc"]
-
-  ingress_default_web --> service_default_web_svc
-  service_default_web_svc -.-> pod_default_web_abc
-  deployment_default_web ==> pod_default_web_abc
+  daemonset_kube_system_cilium_envoy["DaemonSet\ncilium-envoy"]
+  service_kube_system_cilium_envoy(["Service\ncilium-envoy<br/>type: ClusterIP<br/>clusterIP: None"])
+  pod_kube_system_cilium_envoy_ggf7l["Pod\ncilium-envoy-ggf7l<br/>IP: 172.30.2.2<br/>phase: Running"]
+  pod_kube_system_cilium_envoy_gl2cp["Pod\ncilium-envoy-gl2cp<br/>IP: 172.30.1.2<br/>phase: Running"]
+  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_ggf7l
+  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_gl2cp
+  service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_ggf7l
+  service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_gl2cp
 ```
 
 ## Current Scope
