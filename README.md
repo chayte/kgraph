@@ -36,13 +36,13 @@ Download the latest archive matching your operating system and architecture from
 On macOS or Linux, set the release version:
 
 ```bash
-VERSION=v0.2.3
+VERSION=v0.2.4
 ```
 
 Then run this block to detect your OS and CPU architecture, download the matching archive, and install the plugin. It defaults to `v0.2.3` if the version variable was not set in the current shell:
 
 ```bash
-VERSION="${VERSION:-v0.2.3}"
+VERSION="${VERSION:-v0.2.4}"
 case "$(uname -s)" in
   Darwin) OS=darwin ;;
   Linux) OS=linux ;;
@@ -125,8 +125,6 @@ kubectl graph deployment web -n prod
 kubectl graph ingress web -n prod --output tree
 ```
 
-`-n/--namespace` can be placed before or after the resource name.
-
 ## Example
 
 ![Example output for a Kubernetes Service graph](docs/images/example1.png)
@@ -156,8 +154,8 @@ graph LR
   pod_kube_system_cilium_envoy_ggf7l["Pod\ncilium-envoy-ggf7l<br/>IP: 172.30.2.2<br/>phase: Running"]
   pod_kube_system_cilium_envoy_gl2cp["Pod\ncilium-envoy-gl2cp<br/>IP: 172.30.1.2<br/>phase: Running"]
   daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_ggf7l
-  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_gl2cp
   service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_ggf7l
+  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_gl2cp
   service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_gl2cp
 ```
 
