@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Build release archives
@@ -22,8 +22,8 @@ jobs:
           version="${GITHUB_REF_NAME}"
           mkdir -p dist
           go install github.com/google/go-licenses/v2@v2.0.1
-          go-licenses save ./cmd/kubectl-graph --save_path=dist/third-party-licenses
-          go-licenses report ./cmd/kubectl-graph > dist/THIRD_PARTY_LICENSES.csv
+          go-licenses save ./cmd/kubectl-graph --ignore=github.com/chayte/kubectl-graph --save_path=dist/third-party-licenses
+          go-licenses report ./cmd/kubectl-graph --ignore=github.com/chayte/kubectl-graph > dist/THIRD_PARTY_LICENSES.csv
 
           for target in "darwin amd64" "darwin arm64" "linux amd64" "linux arm64" "windows amd64" "windows arm64"; do
             read -r goos goarch <<< "$target"
