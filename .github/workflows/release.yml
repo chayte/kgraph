@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build release archives
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          go install github.com/google/go-licenses/v2@v2.0.1
+          go-licenses save ./cmd/kubectl-graph --save_path=dist/third-party-licenses
+          go-licenses report ./cmd/kubectl-graph > dist/THIRD_PARTY_LICENSES.csv
+
+          for target in "darwin amd64" "darwin arm64" "linux amd64" "linux arm64" "windows amd64" "windows arm64"; do
+            read -r goos goarch <<< "$target"
+            package="kubectl-graph_${version}_${goos}_${goarch}"
+            extension=""
+            if [[ "$goos" == "windows" ]]; then
+              extension=".exe"
+            fi
+
+            mkdir -p "dist/${package}/THIRD_PARTY_LICENSES"
+            GOOS="$goos" GOARCH="$goarch" go build -trimpath -ldflags="-s -w" -o "dist/${package}/kubectl-graph${extension}" ./cmd/kubectl-graph
+            cp LICENSE README.md dist/THIRD_PARTY_LICENSES.csv "dist/${package}/"
+            cp -R dist/third-party-licenses/. "dist/${package}/THIRD_PARTY_LICENSES/"
+
+            if [[ "$goos" == "windows" ]]; then
+              (cd dist && zip -qr "${package}.zip" "$package")
+            else
+              tar -C dist -czf "dist/${package}.tar.gz" "$package"
+            fi
+
+            rm -rf "dist/${package}"
+          done
+
+          (cd dist && sha256sum kubectl-graph_*.tar.gz kubectl-graph_*.zip > SHA256SUMS)
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/kubectl-graph_*.tar.gz
+            dist/kubectl-graph_*.zip
+            dist/SHA256SUMS
