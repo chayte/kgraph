@@ -2348,7 +2348,23 @@ _kubectl_graph() {
 
 _kubectl_graph_dispatch() {
 	if [[ ${COMP_CWORD} -eq 1 ]]; then
-		COMPREPLY=( $(compgen -W "graph" -- "${COMP_WORDS[$COMP_CWORD]}") )
+		local current="${COMP_WORDS[$COMP_CWORD]}" graph_match
+		if command -v __start_kubectl >/dev/null 2>&1; then
+			__start_kubectl
+		fi
+		if [[ "graph" == "$current"* ]]; then
+			graph_match=1
+			local reply
+			for reply in "${COMPREPLY[@]}"; do
+				if [[ "$reply" == "graph" ]]; then
+					graph_match=0
+					break
+				fi
+			done
+			if [[ "$graph_match" -eq 1 ]]; then
+				COMPREPLY+=(graph)
+			fi
+		fi
 		return 0
 	fi
 
