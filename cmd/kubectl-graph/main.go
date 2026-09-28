@@ -2073,6 +2073,18 @@ _kubectl_graph() {
 		fi
 	done
 
+	if [[ "${words[CURRENT-1]}" == "-n" || "${words[CURRENT-1]}" == "--namespace" ]]; then
+		local -a namespaces
+		namespaces=(${(f)"$(kubectl get ns -o custom-columns=':metadata.name' --no-headers 2>/dev/null)"})
+		_kubectl_graph_add_matches "${namespaces[@]}"
+		return
+	fi
+
+	if [[ "${words[CURRENT-1]}" == "--output" ]]; then
+		_values 'format' 'ascii' 'mermaid' 'tree' 'json'
+		return
+	fi
+
 	if [[ "${words[1]}" == "kubectl" ]]; then
 		if (( CURRENT == 2 )); then
 			_values 'kubectl plugin command' 'graph'
@@ -2257,7 +2269,7 @@ _kubectl_graph() {
 	# Find the actual subcommand by skipping leading flags (-n namespace, --output value, etc.)
 	local cmd="" cmd_idx _ki
 	cmd_idx=${#COMP_WORDS[@]}
-	for (( _ki=1; _ki < ${#COMP_WORDS[@]}; _ki++ )); do
+	for (( _ki=1; _ki < COMP_CWORD; _ki++ )); do
 		case "${COMP_WORDS[$_ki]}" in
 			-n|--namespace) namespace="${COMP_WORDS[$((_ki+1))]}"; (( _ki++ )) ;;
 			--output) (( _ki++ )) ;;
@@ -2265,6 +2277,16 @@ _kubectl_graph() {
 			*) cmd="${COMP_WORDS[$_ki]}"; cmd_idx=$_ki; break ;;
 		esac
 	done
+
+	if [[ "$prev" == "-n" || "$prev" == "--namespace" ]]; then
+		COMPREPLY=( $(compgen -W "$(kubectl get ns -o custom-columns=':metadata.name' --no-headers 2>/dev/null)" -- "$cur") )
+		return 0
+	fi
+
+	if [[ "$prev" == "--output" ]]; then
+		COMPREPLY=( $(compgen -W "ascii mermaid tree json" -- "$cur") )
+		return 0
+	fi
 
 	# No subcommand yet, or cursor is at the subcommand position → suggest subcommands
 	if [[ -z "${cmd}" || ${COMP_CWORD} -eq ${cmd_idx} ]]; then
