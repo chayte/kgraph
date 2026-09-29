@@ -1162,7 +1162,7 @@ func renderIngressASCII(ctx context.Context, clientset *kubernetes.Clientset, na
 		return "", errors.New("ingress does not reference any service backend")
 	}
 
-	fmt.Fprintf(&b, "|-- Routes:\n")
+	fmt.Fprintf(&b, "|-- Routing rules:\n")
 	for i, be := range backends {
 		branch := "|--"
 		if i == len(backends)-1 {
