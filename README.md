@@ -36,13 +36,13 @@ Download the latest archive matching your operating system and architecture from
 On macOS or Linux, set the release version:
 
 ```bash
-VERSION=v0.3.0
+VERSION=v0.3.1
 ```
 
 Then run this block to detect your OS and CPU architecture, download the matching archive, and install the plugin. It defaults to `v0.2.3` if the version variable was not set in the current shell:
 
 ```bash
-VERSION="${VERSION:-v0.3.0}"
+VERSION="${VERSION:-v0.3.1}"
 case "$(uname -s)" in
   Darwin) OS=darwin ;;
   Linux) OS=linux ;;
