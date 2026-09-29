@@ -129,6 +129,8 @@ func main() {
 		runDeployment(args[1:], rootOpts)
 	case "statefulset", "sts":
 		runStatefulSet(args[1:], rootOpts)
+	case "replicaset", "rs":
+		runReplicaSet(args[1:], rootOpts)
 	case "job":
 		runJob(args[1:], rootOpts)
 	case "cronjob", "cron", "cj":
@@ -333,6 +335,56 @@ func runStatefulSet(args []string, base options) {
 		}
 		data, _ := json.MarshalIndent(renderGraphJSON(gr), "", "  ")
 		fmt.Println(string(data))
+	default:
+		fmt.Fprintf(os.Stderr, "unsupported output: %s\n", opts.output)
+		os.Exit(1)
+	}
+}
+
+func runReplicaSet(args []string, base options) {
+	fs := pflag.NewFlagSet("replicaset", pflag.ExitOnError)
+	opts := base
+	fs.StringVarP(&opts.namespace, "namespace", "n", base.namespace, "namespace")
+	fs.StringVar(&opts.output, "output", base.output, "output format: ascii|mermaid|tree|json")
+	_ = fs.Parse(args)
+
+	if fs.NArg() < 1 {
+		fmt.Fprintln(os.Stderr, "missing replicaset name")
+		fmt.Fprintln(os.Stderr, "usage: kubectl-graph replicaset <name> [-n namespace] [--output ascii|mermaid|tree|json]")
+		os.Exit(1)
+	}
+	replicaSetName := fs.Arg(0)
+
+	clientset, err := buildClientset()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build kubernetes client: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	switch opts.output {
+	case "ascii":
+		out, err := renderReplicaSetASCII(ctx, clientset, opts.namespace, replicaSetName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to build graph: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(highlightMissingMarkers(out))
+	case "mermaid", "tree", "json":
+		gr, err := buildReplicaSetGraph(ctx, clientset, opts.namespace, replicaSetName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to build graph: %v\n", err)
+			os.Exit(1)
+		}
+		switch opts.output {
+		case "mermaid":
+			fmt.Println(renderMermaid(gr))
+		case "tree":
+			fmt.Println(renderTree(gr))
+		case "json":
+			data, _ := json.MarshalIndent(renderGraphJSON(gr), "", "  ")
+			fmt.Println(string(data))
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported output: %s\n", opts.output)
 		os.Exit(1)
@@ -933,6 +985,7 @@ Usage:
 	kubectl-graph deploy <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph statefulset <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph sts <name> [-n namespace] [--output ascii|mermaid|tree|json]
+	kubectl-graph replicaset|rs <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph job <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph cronjob|cj <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph cron <name> [-n namespace] [--output ascii|mermaid|tree|json]
@@ -2119,6 +2172,8 @@ _kubectl_graph() {
 			'deployment[Graph dependencies from a deployment]' \
 			'sts[Alias for statefulset]' \
 			'statefulset[Graph dependencies from a StatefulSet]' \
+			'replicaset[Graph dependencies from a ReplicaSet]' \
+			'rs[Alias for replicaset]' \
 			'job[Graph dependencies from a job]' \
 			'cron[Alias for cronjob]' \
 			'cj[Alias for cronjob]' \
@@ -2189,6 +2244,7 @@ _kubectl_graph() {
 		service|svc)                  _kg_zsh_complete_namespaced svc ;;
 		deployment|deploy)            _kg_zsh_complete_namespaced deploy ;;
 		statefulset|sts)              _kg_zsh_complete_namespaced statefulset ;;
+		replicaset|rs)                _kg_zsh_complete_namespaced replicaset ;;
 		job)                          _kg_zsh_complete_namespaced job ;;
 		cronjob|cron|cj)              _kg_zsh_complete_namespaced cronjob ;;
 		gateway|gtw)                  _kg_zsh_complete_namespaced gateway ;;
@@ -2290,7 +2346,7 @@ _kubectl_graph() {
 
 	# No subcommand yet, or cursor is at the subcommand position → suggest subcommands
 	if [[ -z "${cmd}" || ${COMP_CWORD} -eq ${cmd_idx} ]]; then
-		COMPREPLY=( $(compgen -W "ingress ing service svc deployment deploy statefulset sts job cronjob cron cj pod pods po pvc role rolebinding rb clusterrole cr clusterrolebinding crb gateway gtw httproute tcproute udproute tlsroute grpcroute completion" -- "${cur}") )
+		COMPREPLY=( $(compgen -W "ingress ing service svc deployment deploy statefulset sts replicaset rs job cronjob cron cj pod pods po pvc role rolebinding rb clusterrole cr clusterrolebinding crb gateway gtw httproute tcproute udproute tlsroute grpcroute completion" -- "${cur}") )
 		return 0
 	fi
 
@@ -2335,6 +2391,7 @@ _kubectl_graph() {
 		service|svc)                                          _kg_complete_namespaced svc; return $? ;;
 		deployment|deploy)                                    _kg_complete_namespaced deploy; return $? ;;
 		statefulset|sts)                                      _kg_complete_namespaced statefulset; return $? ;;
+		replicaset|rs)                                        _kg_complete_namespaced replicaset; return $? ;;
 		job)                                                  _kg_complete_namespaced job; return $? ;;
 		cronjob|cron|cj)                                      _kg_complete_namespaced cronjob; return $? ;;
 		gateway|gtw)                                          COMPREPLY=( $(compgen -W "-n --namespace --output" -- "${cur}") ); return 0 ;;
@@ -2750,6 +2807,130 @@ func podsForStatefulSet(ctx context.Context, clientset *kubernetes.Clientset, st
 		return nil, err
 	}
 	return podList.Items, nil
+}
+
+func renderReplicaSetASCII(ctx context.Context, clientset *kubernetes.Clientset, namespace, replicaSetName string) (string, error) {
+	replicaSet, err := clientset.AppsV1().ReplicaSets(namespace).Get(ctx, replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	pods, err := podsForReplicaSet(ctx, clientset, replicaSet)
+	if err != nil {
+		return "", err
+	}
+	services, _ := servicesMatchingSelector(ctx, clientset, namespace, replicaSet.Spec.Template.Labels)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Namespace: %s\n", styleValue(replicaSet.Namespace))
+	fmt.Fprintf(&b, "%s: %s\n", styleType("ReplicaSet"), styleValue(replicaSet.Name))
+	fmt.Fprintf(&b, "|-- Replicas:\n")
+	fmt.Fprintf(&b, "|   |-- desired: %s\n", styleValue(fmt.Sprintf("%d", valueOrZero(replicaSet.Spec.Replicas))))
+	fmt.Fprintf(&b, "|   |-- current: %s\n", styleValue(fmt.Sprintf("%d", replicaSet.Status.Replicas)))
+	fmt.Fprintf(&b, "|   |-- ready: %s\n", styleValue(fmt.Sprintf("%d", replicaSet.Status.ReadyReplicas)))
+	fmt.Fprintf(&b, "|   `-- available: %s\n", styleValue(fmt.Sprintf("%d", replicaSet.Status.AvailableReplicas)))
+	fmt.Fprintf(&b, "|-- Selector: %s\n", styleValue(metav1.FormatLabelSelector(replicaSet.Spec.Selector)))
+	fmt.Fprintf(&b, "|-- Services:\n")
+	if len(services) == 0 {
+		fmt.Fprintf(&b, "|   `-- none\n")
+	} else {
+		for i, svc := range services {
+			line, child := branchMarkers("|   ", i == len(services)-1)
+			fmt.Fprintf(&b, "%s%s: %s\n", line, styleType("Service"), styleValue(svc.Name))
+			fmt.Fprintf(&b, "%s|-- ClusterIP: %s\n", child, styleValue(valueOrNone(svc.Spec.ClusterIP)))
+			svcPorts := formatServicePorts(svc.Spec.Ports)
+			if len(svcPorts) == 0 {
+				fmt.Fprintf(&b, "%s`-- Ports: none\n", child)
+			} else {
+				fmt.Fprintf(&b, "%s`-- Ports:\n", child)
+				for pi, portLine := range svcPorts {
+					portPrefix, _ := branchMarkers(child+"    ", pi == len(svcPorts)-1)
+					fmt.Fprintf(&b, "%s%s\n", portPrefix, styleValue(portLine))
+				}
+			}
+		}
+	}
+
+	fmt.Fprintf(&b, "`-- Pods:\n")
+	if len(pods) == 0 {
+		fmt.Fprintf(&b, "    `-- none\n")
+		return b.String(), nil
+	}
+	sort.Slice(pods, func(i, j int) bool { return pods[i].Name < pods[j].Name })
+	for i, pod := range pods {
+		line, child := branchMarkers("    ", i == len(pods)-1)
+		fmt.Fprintf(&b, "%s%s: %s\n", line, styleType("Pod"), styleValue(pod.Name))
+		fmt.Fprintf(&b, "%s|-- IP: %s\n", child, styleValue(valueOrNone(pod.Status.PodIP)))
+		fmt.Fprintf(&b, "%s`-- Phase: %s\n", child, stylePhase(pod.Status.Phase))
+	}
+
+	return b.String(), nil
+}
+
+func buildReplicaSetGraph(ctx context.Context, clientset *kubernetes.Clientset, namespace, replicaSetName string) (*graph, error) {
+	replicaSet, err := clientset.AppsV1().ReplicaSets(namespace).Get(ctx, replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	g := newGraph()
+	replicaSetDetails := fmt.Sprintf("desired: %d | current: %d | ready: %d | available: %d",
+		valueOrZero(replicaSet.Spec.Replicas), replicaSet.Status.Replicas, replicaSet.Status.ReadyReplicas, replicaSet.Status.AvailableReplicas)
+	replicaSetNode := g.addNodeWithDetails("ReplicaSet", replicaSet.Namespace, replicaSet.Name, replicaSetDetails)
+
+	pods, err := podsForReplicaSet(ctx, clientset, replicaSet)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(pods, func(i, j int) bool { return pods[i].Name < pods[j].Name })
+	for _, pod := range pods {
+		podNode := g.addNodeWithDetails("Pod", pod.Namespace, pod.Name, buildPodDetails(&pod))
+		g.addEdge(replicaSetNode, podNode)
+	}
+
+	services, _ := servicesMatchingSelector(ctx, clientset, namespace, replicaSet.Spec.Template.Labels)
+	for _, svc := range services {
+		svcNode := g.addNodeWithDetails("Service", svc.Namespace, svc.Name, buildServiceDetails(ctx, clientset, &svc))
+		svcPortsLabel := buildServicePortsLabel(svc.Spec.Ports)
+		for _, pod := range pods {
+			podNode := g.addNodeWithDetails("Pod", pod.Namespace, pod.Name, buildPodDetails(&pod))
+			g.addEdgeWithLabel(svcNode, podNode, svcPortsLabel)
+		}
+		ingresses, _ := ingressesForService(ctx, clientset, svc.Namespace, svc.Name)
+		for _, ingressName := range ingresses {
+			ingressNode := g.addNode("Ingress", svc.Namespace, ingressName)
+			ingressLabel := ""
+			ingress, err := clientset.NetworkingV1().Ingresses(svc.Namespace).Get(ctx, ingressName, metav1.GetOptions{})
+			if err == nil {
+				ingressNode = g.addNodeWithDetails("Ingress", ingress.Namespace, ingress.Name, buildIngressDetails(ingress))
+				ingressLabel = ingressRoutesForServiceLabel(ingress, svc.Name)
+			}
+			g.addEdgeWithLabel(ingressNode, svcNode, ingressLabel)
+		}
+	}
+
+	return g, nil
+}
+
+func podsForReplicaSet(ctx context.Context, clientset kubernetes.Interface, replicaSet *appsv1.ReplicaSet) ([]corev1.Pod, error) {
+	selector, err := metav1.LabelSelectorAsSelector(replicaSet.Spec.Selector)
+	if err != nil {
+		return nil, err
+	}
+	podList, err := clientset.CoreV1().Pods(replicaSet.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, err
+	}
+	pods := make([]corev1.Pod, 0, len(podList.Items))
+	for _, pod := range podList.Items {
+		for _, owner := range pod.OwnerReferences {
+			if owner.Kind == "ReplicaSet" && owner.Name == replicaSet.Name && owner.UID == replicaSet.UID {
+				pods = append(pods, pod)
+				break
+			}
+		}
+	}
+	return pods, nil
 }
 
 func renderRoleASCII(ctx context.Context, clientset *kubernetes.Clientset, namespace, roleName string) (string, error) {

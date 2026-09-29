@@ -122,6 +122,7 @@ kubectl graph <resource> <name> -n <namespace>
 kubectl graph ingress web -n prod
 kubectl graph service web-svc -n prod
 kubectl graph deployment web -n prod
+kubectl graph replicaset web-7d9f8c -n prod
 kubectl graph ingress web -n prod --output tree
 ```
 
