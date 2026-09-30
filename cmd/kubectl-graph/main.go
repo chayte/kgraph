@@ -15,6 +15,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -159,6 +163,8 @@ func main() {
 		runClusterRole(args[1:], rootOpts)
 	case "clusterrolebinding", "crb":
 		runClusterRoleBinding(args[1:], rootOpts)
+	case "all":
+		runAll(args[1:], rootOpts)
 	case "completion":
 		runCompletion(args[1:])
 	case "help", "-h", "--help":
@@ -389,6 +395,177 @@ func runReplicaSet(args []string, base options) {
 		fmt.Fprintf(os.Stderr, "unsupported output: %s\n", opts.output)
 		os.Exit(1)
 	}
+}
+
+func runAll(args []string, base options) {
+	fs := pflag.NewFlagSet("all", pflag.ExitOnError)
+	opts := base
+	fs.StringVarP(&opts.namespace, "namespace", "n", base.namespace, "namespace")
+	fs.StringVar(&opts.output, "output", base.output, "output format: ascii|mermaid|tree|json")
+	_ = fs.Parse(args)
+
+	clientset, err := buildClientset()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build kubernetes client: %v\n", err)
+		os.Exit(1)
+	}
+	dynamicClient, err := buildDynamicClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build dynamic kubernetes client: %v\n", err)
+		os.Exit(1)
+	}
+
+	graph, err := buildAllGraph(context.Background(), clientset, dynamicClient, opts.namespace)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build namespace graph: %v\n", err)
+		os.Exit(1)
+	}
+
+	switch opts.output {
+	case "ascii":
+		fmt.Println(renderAllASCII(graph, opts.namespace))
+	case "mermaid":
+		fmt.Println(renderMermaid(graph))
+	case "tree":
+		fmt.Println(renderTree(graph))
+	case "json":
+		data, _ := json.MarshalIndent(renderGraphJSON(graph), "", "  ")
+		fmt.Println(string(data))
+	default:
+		fmt.Fprintf(os.Stderr, "unsupported output: %s\n", opts.output)
+		os.Exit(1)
+	}
+}
+
+func buildAllGraph(ctx context.Context, clientset *kubernetes.Clientset, dynamicClient dynamic.Interface, namespace string) (*graph, error) {
+	g := newGraph()
+	pods, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		g.addNodeWithDetails("Pod", pod.Namespace, pod.Name, buildPodDetails(pod))
+	}
+
+	deployments, _ := clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	for i := range deployments.Items {
+		dep := &deployments.Items[i]
+		g.addNodeWithDetails("Deployment", namespace, dep.Name, fmt.Sprintf("desired: %d | ready: %d", valueOrZero(dep.Spec.Replicas), dep.Status.ReadyReplicas))
+	}
+	statefulSets, _ := clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
+	for i := range statefulSets.Items {
+		sts := &statefulSets.Items[i]
+		g.addNodeWithDetails("StatefulSet", namespace, sts.Name, fmt.Sprintf("replicas: %d | ready: %d", valueOrZero(sts.Spec.Replicas), sts.Status.ReadyReplicas))
+	}
+	daemonSets, _ := clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
+	for i := range daemonSets.Items {
+		ds := &daemonSets.Items[i]
+		g.addNode("DaemonSet", namespace, ds.Name)
+	}
+	replicaSets, _ := clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
+	for i := range replicaSets.Items {
+		rs := &replicaSets.Items[i]
+		g.addNodeWithDetails("ReplicaSet", namespace, rs.Name, fmt.Sprintf("desired: %d | ready: %d", valueOrZero(rs.Spec.Replicas), rs.Status.ReadyReplicas))
+	}
+	jobs, _ := clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
+	for i := range jobs.Items {
+		job := &jobs.Items[i]
+		g.addNode("Job", namespace, job.Name)
+	}
+	cronJobs, _ := clientset.BatchV1().CronJobs(namespace).List(ctx, metav1.ListOptions{})
+	for i := range cronJobs.Items {
+		cj := &cronJobs.Items[i]
+		g.addNode("CronJob", namespace, cj.Name)
+	}
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		ownerKind, ownerName := resolveWorkloadOwner(ctx, clientset, pod)
+		if ownerName != "" {
+			g.addEdge(g.addNode(ownerKind, namespace, ownerName), g.addNode("Pod", namespace, pod.Name))
+		}
+	}
+
+	services, _ := clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+	for i := range services.Items {
+		svc := &services.Items[i]
+		svcNode := g.addNodeWithDetails("Service", namespace, svc.Name, buildServiceDetails(ctx, clientset, svc))
+		selector := labels.Set(svc.Spec.Selector)
+		for j := range pods.Items {
+			pod := &pods.Items[j]
+			if selector.AsSelector().Matches(labels.Set(pod.Labels)) {
+				g.addEdgeWithLabel(svcNode, g.addNode("Pod", namespace, pod.Name), buildServicePortsLabel(svc.Spec.Ports))
+			}
+		}
+	}
+	ingresses, _ := clientset.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
+	for i := range ingresses.Items {
+		ing := &ingresses.Items[i]
+		ingNode := g.addNodeWithDetails("Ingress", namespace, ing.Name, buildIngressDetails(ing))
+		for _, serviceName := range referencedServices(ing) {
+			g.addEdge(ingNode, g.addNode("Service", namespace, serviceName))
+		}
+	}
+	pvcs, _ := clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+	for i := range pvcs.Items {
+		pvc := &pvcs.Items[i]
+		pvcNode := g.addNode("PersistentVolumeClaim", namespace, pvc.Name)
+		if pvc.Spec.VolumeName != "" {
+			g.addEdge(pvcNode, g.addNode("PersistentVolume", "cluster", pvc.Spec.VolumeName))
+		}
+	}
+	addGatewayAPIGraph(ctx, dynamicClient, namespace, g)
+	return g, nil
+}
+
+func addGatewayAPIGraph(ctx context.Context, client dynamic.Interface, namespace string, g *graph) {
+	gatewayGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}
+	httpRouteGVR := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
+	gateways, err := client.Resource(gatewayGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err == nil {
+		for i := range gateways.Items {
+			gateway := &gateways.Items[i]
+			g.addNode("Gateway", namespace, gateway.GetName())
+		}
+	}
+	routes, err := client.Resource(httpRouteGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return
+	}
+	for i := range routes.Items {
+		route := &routes.Items[i]
+		routeNode := g.addNode("HTTPRoute", namespace, route.GetName())
+		parents, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
+		for _, parent := range parents {
+			parentMap, ok := parent.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if name, ok, _ := unstructured.NestedString(parentMap, "name"); ok {
+				g.addEdge(routeNode, g.addNode("Gateway", namespace, name))
+			}
+		}
+		backends, _, _ := unstructured.NestedSlice(route.Object, "spec", "rules")
+		for _, rule := range backends {
+			ruleMap, ok := rule.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			refs, _, _ := unstructured.NestedSlice(ruleMap, "backendRefs")
+			for _, ref := range refs {
+				refMap, ok := ref.(map[string]interface{})
+				if ok {
+					if name, found, _ := unstructured.NestedString(refMap, "name"); found {
+						g.addEdge(routeNode, g.addNode("Service", namespace, name))
+					}
+				}
+			}
+		}
+	}
+}
+
+func renderAllASCII(g *graph, namespace string) string {
+	return fmt.Sprintf("Namespace: %s\nResources: %d\n\n%s", namespace, len(g.nodes), renderTree(g))
 }
 
 func runRole(args []string, base options) {
@@ -1001,6 +1178,7 @@ Usage:
 	kubectl-graph rolebinding|rb <name> [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph clusterrole|cr <name> [--output ascii|mermaid|tree|json]
 	kubectl-graph clusterrolebinding|crb <name> [--output ascii|mermaid|tree|json]
+	kubectl-graph all [-n namespace] [--output ascii|mermaid|tree|json]
 	kubectl-graph completion <zsh|bash>
 
 Examples:
@@ -2196,6 +2374,7 @@ _kubectl_graph() {
 			'cr[Alias for clusterrole]' \
 			'clusterrolebinding[Graph RBAC dependencies from a ClusterRoleBinding]' \
 			'crb[Alias for clusterrolebinding]' \
+			'all[Graph all supported resources in a namespace]' \\
 			'completion[Generate completion script]'
 		return
 	fi
@@ -2346,7 +2525,7 @@ _kubectl_graph() {
 
 	# No subcommand yet, or cursor is at the subcommand position → suggest subcommands
 	if [[ -z "${cmd}" || ${COMP_CWORD} -eq ${cmd_idx} ]]; then
-		COMPREPLY=( $(compgen -W "ingress ing service svc deployment deploy statefulset sts replicaset rs job cronjob cron cj pod pods po pvc role rolebinding rb clusterrole cr clusterrolebinding crb gateway gtw httproute tcproute udproute tlsroute grpcroute completion" -- "${cur}") )
+		COMPREPLY=( $(compgen -W "ingress ing service svc deployment deploy statefulset sts replicaset rs job cronjob cron cj pod pods po pvc role rolebinding rb clusterrole cr clusterrolebinding crb gateway gtw httproute tcproute udproute tlsroute grpcroute all completion" -- "${cur}") )
 		return 0
 	fi
 
@@ -2482,6 +2661,22 @@ complete -o default -F _kubectl_graph_dispatch kubectl
 `
 
 func buildClientset() (*kubernetes.Clientset, error) {
+	cfg, err := buildRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(cfg)
+}
+
+func buildDynamicClient() (dynamic.Interface, error) {
+	cfg, err := buildRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	return dynamic.NewForConfig(cfg)
+}
+
+func buildRESTConfig() (*rest.Config, error) {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -2491,7 +2686,7 @@ func buildClientset() (*kubernetes.Clientset, error) {
 			return nil, err
 		}
 	}
-	return kubernetes.NewForConfig(cfg)
+	return cfg, nil
 }
 
 func buildIngressGraph(ctx context.Context, clientset *kubernetes.Clientset, namespace, ingressName string) (*graph, error) {

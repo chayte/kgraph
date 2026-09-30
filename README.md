@@ -123,8 +123,11 @@ kubectl graph ingress web -n prod
 kubectl graph service web-svc -n prod
 kubectl graph deployment web -n prod
 kubectl graph replicaset web-7d9f8c -n prod
+kubectl graph all -n prod --output mermaid
 kubectl graph ingress web -n prod --output tree
 ```
+
+`all` maps the main workload, Service, Ingress, PVC/PV, Gateway, and HTTPRoute relationships in a namespace. RBAC resources and arbitrary CRDs are not included.
 
 ## Example
 
@@ -148,17 +151,7 @@ NO_COLOR=1 kubectl graph ...
 
 ## Mermaid Example
 
-```mermaid
-graph LR
-  daemonset_kube_system_cilium_envoy["DaemonSet\ncilium-envoy"]
-  service_kube_system_cilium_envoy(["Service\ncilium-envoy<br/>type: ClusterIP<br/>clusterIP: None"])
-  pod_kube_system_cilium_envoy_ggf7l["Pod\ncilium-envoy-ggf7l<br/>IP: 172.30.2.2<br/>phase: Running"]
-  pod_kube_system_cilium_envoy_gl2cp["Pod\ncilium-envoy-gl2cp<br/>IP: 172.30.1.2<br/>phase: Running"]
-  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_ggf7l
-  service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_ggf7l
-  daemonset_kube_system_cilium_envoy --> pod_kube_system_cilium_envoy_gl2cp
-  service_kube_system_cilium_envoy -.->|ports: envoy-metrics 9964/TCP -> target:9964| pod_kube_system_cilium_envoy_gl2cp
-```
+![Example of a Mermaid output](docs/images/example2.png)
 
 ## Current Scope
 
